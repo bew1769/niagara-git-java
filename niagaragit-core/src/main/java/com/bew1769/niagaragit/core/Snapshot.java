@@ -47,7 +47,28 @@ public final class Snapshot {
     }
   }
 
+  /** Where the station database bytes come from. */
+  public interface BogSource {
+    byte[] read() throws IOException;
+  }
+
   private Snapshot() {
+  }
+
+  /** Reads {@code config.bog} from the station directory. */
+  public static BogSource fileSource(Path stationDir) {
+    return () -> {
+      Path bog = stationDir.resolve(CONFIG_BOG);
+      if (!Files.isRegularFile(bog, LinkOption.NOFOLLOW_LINKS)) {
+        throw new NoSuchFileException(bog.toString(), null, "station has no config.bog");
+      }
+      return Files.readAllBytes(bog);
+    };
+  }
+
+  public static Result toWorkTree(Path stationDir, Path workTree, boolean includeShared)
+      throws IOException {
+    return toWorkTree(stationDir, fileSource(stationDir), workTree, includeShared);
   }
 
   /**
@@ -56,24 +77,23 @@ public final class Snapshot {
    * {@code shared/} that the station no longer has are removed. Nothing else in
    * the work tree (README, .gitignore, .git) is touched.
    */
-  public static Result toWorkTree(Path stationDir, Path workTree, boolean includeShared)
-      throws IOException {
-    Path bog = stationDir.resolve(CONFIG_BOG);
-    if (!Files.isRegularFile(bog, LinkOption.NOFOLLOW_LINKS)) {
-      throw new NoSuchFileException(bog.toString(), null, "station has no config.bog");
-    }
+  public static Result toWorkTree(Path stationDir, BogSource bogSource, Path workTree,
+      boolean includeShared) throws IOException {
+    byte[] bog = bogSource.read();
     if (isInside(stationDir.resolve(SHARED), workTree)) {
       throw new IOException("the git work tree must not be inside the station shared folder: " + workTree);
     }
     Files.createDirectories(workTree);
 
     Map<String, Path> source = new TreeMap<>();
-    source.put(CONFIG_BOG, bog);
     if (includeShared) {
       source.putAll(listShared(stationDir));
     }
 
     List<String> written = new ArrayList<>();
+    if (writeIfDifferent(bog, workTree.resolve(CONFIG_BOG))) {
+      written.add(CONFIG_BOG);
+    }
     for (Map.Entry<String, Path> e : source.entrySet()) {
       if (copyIfDifferent(e.getValue(), workTree.resolve(e.getKey()))) {
         written.add(e.getKey());
@@ -145,7 +165,10 @@ public final class Snapshot {
   }
 
   private static boolean copyIfDifferent(Path from, Path to) throws IOException {
-    byte[] data = Files.readAllBytes(from);
+    return writeIfDifferent(Files.readAllBytes(from), to);
+  }
+
+  private static boolean writeIfDifferent(byte[] data, Path to) throws IOException {
     if (Files.isRegularFile(to, LinkOption.NOFOLLOW_LINKS) && Arrays.equals(data, Files.readAllBytes(to))) {
       return false;
     }

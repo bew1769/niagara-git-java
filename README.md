@@ -22,18 +22,19 @@ Drop **StationGit** from the `niagaraGit` palette anywhere in the station (Servi
 
 | Slot | Meaning |
 | --- | --- |
-| `repoPath` | Work tree, relative to the protected station home. Default `git` (so `stations/<name>/git`). It must not be under `shared/`. |
-| `remoteUrl` | `https://…` or a `file:` URL. Blank means commit only. |
+| `repoPath` | Work tree. Blank (the default) means `<niagara user home>/shared/git/<station>`. A relative path is resolved against `<niagara user home>/shared`. See "Station security" below. |
+| `remoteUrl` | `https://…` or a `file:` URL. Blank means commit only. A `file:` remote must be under `<niagara user home>/shared`. |
 | `branch` | Default `main`. |
 | `username`, `password` | HTTPS credentials. For GitHub, a fine-grained token with Contents read/write on that one repo as the password; the user name can be anything non-empty. |
 | `authorName`, `authorEmail` | Commit identity. |
 | `includeShared` | Also version `shared/` (Px, nav, palettes, images). Default true. |
 | `applySharedOnPull` | After a pull, copy pulled `shared/` files into the station. Default false. |
+| `commitMessage` | Optional text added to every commit message. |
 | `status`, `lastResult`, `lastCommit`, `lastRun` | Read-only results. |
 
-Actions:
+Actions (none take an argument, so a `control:TimeTrigger` or any other topic can drive them through a link):
 
-- **commit** (optional message): copy `config.bog` and the shared files into the work tree, then commit when the bytes changed. A second commit with nothing new reports `no changes`.
+- **commit**: copy `config.bog` and the shared files into the work tree, then commit when the bytes changed. A second commit with nothing new reports `no changes`.
 - **push**: push the branch to `origin`. Never forces. A rejected push (the remote moved on) is reported, not overwritten.
 - **commitAndPush**: both. Suitable for a trigger or a scheduled link.
 - **pull**: fetch and fast-forward only. A diverged history is refused with a message; resolve it in a Workbench clone. Pull never writes the live `config.bog`. A running station owns its database, and restoring one is a Platform / Station Copier job.
@@ -45,6 +46,15 @@ What leaves the station: `config.bog` and the files under `shared/` that are not
 A real `config.bog` holds the station's users and their password hashes. **Push only to a private repository.**
 
 JGit is isolated from the host: it does not read `~/.gitconfig`, the system gitconfig, or `GIT_*` environment variables, and it does not write `~/.config/jgit`. Only the work tree's own `.git/config` applies. That config sets `core.autocrlf=false` so `.bog` zips are stored byte for byte.
+
+## Station security
+
+A station runs third-party modules under the Java security manager. Found on a scratch station (Niagara 4.15.6.20):
+
+- The module may read and write only the station's `shared/` folder and `<niagara user home>/shared`. Writing `stations/<name>/git` was denied, so the work tree lives in `<niagara user home>/shared/git/<station>`, outside the station folder and not served as `file:^`. A `file:` remote elsewhere on disk is denied too.
+- Reading the saved `stations/<name>/config.bog` is denied. `commit` then encodes the running station with Niagara's own bog encoder (`javax.baja.io.ValueDocEncoder`) and stores it zipped as `file.xml`, the layout of a saved bog. `lastResult` says when that happened. The encoded copy is the live component tree, so it is not byte-identical to the last save, and every snapshot differs from the one before while values change (one commit per trigger on a busy station).
+- JGit needs `SHUTDOWN_HOOKS` (it registers a hook when it first loads) and `MANAGE_EXECUTION`. `module-permissions.xml` requests both, plus `NETWORK_COMMUNICATION`.
+- The worker thread is created inside `doPrivileged`. Otherwise it inherits the permissions of whatever core module invoked the action (for example a `control:TimeTrigger` link), and JGit's own thread creation fails with `setContextClassLoader` denied.
 
 ## 1. Run the core tests
 
@@ -107,9 +117,10 @@ The jar task signs `niagaraGit-rt.jar` and **copies it into `niagara_home/module
 
 Verified on Windows 11 with Niagara 4.15.6.20 (Vykon brand), Zulu 8.0.502, Gradle 8.10.2 wrapper, plugin 7.6.22:
 
-- `gradlew test`: 22 tests, 0 failures.
-- `:niagaraGit-rt:compileJava` compiled `BStationGit` plus the core against that install's `baja.jar` / `nre.jar`.
+- `gradlew test`: 23 tests, 0 failures.
+- `gradlew -c settings-niagara.gradle.kts :niagaraGit-rt:jar` built and signed the module with a self-signed development certificate trusted in a scratch user home.
+- A scratch station loaded the module (with the "self-signed certificate" warning) and the three permission groups. `control:TimeTrigger` links drove `commitAndPush` every 30 s and `pull` every 45 s. Commits reached a bare `file:` remote under `<niagara user home>/shared/remotes`. A commit pushed from another clone (a new `shared/px` file plus a junk `config.bog`) was pulled: the Px file was written to the station's `shared/px`, the station's `config.bog` was untouched. `lastResult`, `lastCommit` and `lastRun` updated.
 
-Not yet verified: building the signed jar, loading it in a station, and the Java security manager permissions in `module-permissions.xml` (network and worker thread). Those need the signing certificate above and a scratch station. Station file access uses `Sys.getProtectedStationHome()`; if a station denies reading `config.bog` or writing `git/`, that will show in `lastResult` and the station log.
+Not yet verified: HTTPS remotes (GitHub) from a station, and how the live bog encoder handles reversible passwords (it reports `reversibleEncodingKeySource="none"`); test with a throwaway password before pointing a real station at a remote.
 
 SSH remotes are not supported (JGit's SSH transport is not bundled). Use HTTPS with a token, or a `file:` URL.

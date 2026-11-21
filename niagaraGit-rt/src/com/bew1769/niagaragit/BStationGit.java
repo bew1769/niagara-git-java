@@ -1,14 +1,24 @@
 package com.bew1769.niagaragit;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.baja.io.ValueDocEncoder;
 import javax.baja.nre.annotations.NiagaraAction;
 import javax.baja.nre.annotations.NiagaraProperty;
 import javax.baja.nre.annotations.NiagaraType;
@@ -16,7 +26,6 @@ import javax.baja.security.BPassword;
 import javax.baja.sys.Action;
 import javax.baja.sys.BAbsTime;
 import javax.baja.sys.BComponent;
-import javax.baja.sys.BString;
 import javax.baja.sys.Flags;
 import javax.baja.sys.Property;
 import javax.baja.sys.Sys;
@@ -34,11 +43,20 @@ import com.bew1769.niagaragit.core.StationGit;
  * With {@code applySharedOnPull} it copies pulled {@code shared/} files
  * (graphics, nav) into the station.
  *
+ * <p>The actions take no argument so a {@code control:TimeTrigger} or any
+ * other topic can drive them through a link. {@code commitMessage}, when set,
+ * is added to every commit message.
+ *
+ * <p>The work tree defaults to {@code <niagara user home>/shared/git/<station>},
+ * outside the station folder: under the station security manager a
+ * third-party module may write only there and under the station's
+ * {@code shared/} folder.
+ *
  * <p>Work runs on one daemon thread, never on the engine thread. A request
  * that arrives while one is running is refused with a status message.
  */
 @NiagaraType
-@NiagaraProperty(name = "repoPath", type = "String", defaultValue = "\"git\"")
+@NiagaraProperty(name = "repoPath", type = "String", defaultValue = "\"\"")
 @NiagaraProperty(name = "remoteUrl", type = "String", defaultValue = "\"\"")
 @NiagaraProperty(name = "branch", type = "String", defaultValue = "\"main\"")
 @NiagaraProperty(name = "username", type = "String", defaultValue = "\"\"")
@@ -47,14 +65,15 @@ import com.bew1769.niagaragit.core.StationGit;
 @NiagaraProperty(name = "authorEmail", type = "String", defaultValue = "\"station@niagara.invalid\"")
 @NiagaraProperty(name = "includeShared", type = "boolean", defaultValue = "true")
 @NiagaraProperty(name = "applySharedOnPull", type = "boolean", defaultValue = "false")
+@NiagaraProperty(name = "commitMessage", type = "String", defaultValue = "\"\"")
 @NiagaraProperty(name = "status", type = "String", defaultValue = "\"idle\"",
   flags = Flags.READONLY | Flags.SUMMARY | Flags.TRANSIENT)
 @NiagaraProperty(name = "lastResult", type = "String", defaultValue = "\"\"", flags = Flags.READONLY)
 @NiagaraProperty(name = "lastCommit", type = "String", defaultValue = "\"\"", flags = Flags.READONLY)
 @NiagaraProperty(name = "lastRun", type = "BAbsTime", defaultValue = "BAbsTime.NULL", flags = Flags.READONLY)
-@NiagaraAction(name = "commit", parameterType = "BString", defaultValue = "BString.make(\"\")")
+@NiagaraAction(name = "commit")
 @NiagaraAction(name = "push")
-@NiagaraAction(name = "commitAndPush", parameterType = "BString", defaultValue = "BString.make(\"\")")
+@NiagaraAction(name = "commitAndPush")
 @NiagaraAction(name = "pull")
 public class BStationGit extends BComponent {
 /*+ ------------ BEGIN BAJA AUTO GENERATED CODE ------------ +*/
@@ -65,7 +84,7 @@ public class BStationGit extends BComponent {
 // Property "repoPath"
 ////////////////////////////////////////////////////////////////
 
-  public static final Property repoPath = newProperty(0, "git", null);
+  public static final Property repoPath = newProperty(0, "", null);
 
   public String getRepoPath() { return getString(repoPath); }
 
@@ -152,6 +171,16 @@ public class BStationGit extends BComponent {
   public void setApplySharedOnPull(boolean v) { setBoolean(applySharedOnPull, v, null); }
 
 ////////////////////////////////////////////////////////////////
+// Property "commitMessage"
+////////////////////////////////////////////////////////////////
+
+  public static final Property commitMessage = newProperty(0, "", null);
+
+  public String getCommitMessage() { return getString(commitMessage); }
+
+  public void setCommitMessage(String v) { setString(commitMessage, v, null); }
+
+////////////////////////////////////////////////////////////////
 // Property "status"
 ////////////////////////////////////////////////////////////////
 
@@ -195,9 +224,9 @@ public class BStationGit extends BComponent {
 // Action "commit"
 ////////////////////////////////////////////////////////////////
 
-  public static final Action commit = newAction(0, BString.make(""), null);
+  public static final Action commit = newAction(0, null);
 
-  public void commit(BString parameter) { invoke(commit, parameter, null); }
+  public void commit() { invoke(commit, null, null); }
 
 ////////////////////////////////////////////////////////////////
 // Action "push"
@@ -211,9 +240,9 @@ public class BStationGit extends BComponent {
 // Action "commitAndPush"
 ////////////////////////////////////////////////////////////////
 
-  public static final Action commitAndPush = newAction(0, BString.make(""), null);
+  public static final Action commitAndPush = newAction(0, null);
 
-  public void commitAndPush(BString parameter) { invoke(commitAndPush, parameter, null); }
+  public void commitAndPush() { invoke(commitAndPush, null, null); }
 
 ////////////////////////////////////////////////////////////////
 // Action "pull"
@@ -241,10 +270,11 @@ public class BStationGit extends BComponent {
   }
 
   private ExecutorService executor;
+  private volatile String bogNote = "";
   private final AtomicBoolean busy = new AtomicBoolean(false);
 
-  public void doCommit(BString reason) {
-    final String why = reason == null ? "" : reason.getString();
+  public void doCommit() {
+    final String why = getCommitMessage();
     submit("commit", s -> StationGit.commit(s, why));
   }
 
@@ -252,8 +282,8 @@ public class BStationGit extends BComponent {
     submit("push", StationGit::push);
   }
 
-  public void doCommitAndPush(BString reason) {
-    final String why = reason == null ? "" : reason.getString();
+  public void doCommitAndPush() {
+    final String why = getCommitMessage();
     submit("commit and push", s -> StationGit.commitAndPush(s, why));
   }
 
@@ -264,12 +294,26 @@ public class BStationGit extends BComponent {
   @Override
   public void started() throws Exception {
     super.started();
-    executor = Executors.newSingleThreadExecutor(new ThreadFactory() {
+    // The worker thread inherits the access control context of the code that
+    // creates it. Create and start it inside doPrivileged, so that context is
+    // this module's own permissions and not the intersection with whatever
+    // core module happens to be on the stack (a link from control:TimeTrigger,
+    // for example). JGit's own WorkQueue thread calls setContextClassLoader
+    // and fails without this.
+    executor = AccessController.doPrivileged(new PrivilegedAction<ExecutorService>() {
       @Override
-      public Thread newThread(Runnable runnable) {
-        Thread thread = new Thread(runnable, "niagaraGit");
-        thread.setDaemon(true);
-        return thread;
+      public ExecutorService run() {
+        ThreadPoolExecutor e = new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
+            new LinkedBlockingQueue<Runnable>(), new ThreadFactory() {
+              @Override
+              public Thread newThread(Runnable runnable) {
+                Thread thread = new Thread(runnable, "niagaraGit");
+                thread.setDaemon(true);
+                return thread;
+              }
+            });
+        e.prestartAllCoreThreads();
+        return e;
       }
     });
     setStatus("idle");
@@ -306,8 +350,9 @@ public class BStationGit extends BComponent {
       @Override
       public void run() {
         try {
+          bogNote = "";
           StationGit.Outcome o = job.run(settings);
-          finish(name, o.message, o.head);
+          finish(name, o.message + bogNote, o.head);
         } catch (Throwable t) {
           LOG.log(Level.WARNING, "niagaraGit " + name + " failed", t);
           finish(name, "failed: " + describe(t), null);
@@ -329,16 +374,16 @@ public class BStationGit extends BComponent {
 
   StationGit.Settings settings() {
     File protectedHome = Sys.getProtectedStationHome();
-    if (protectedHome == null) {
+    File userShared = Sys.getNiagaraSharedUserHome();
+    if (protectedHome == null || userShared == null || Sys.getStation() == null) {
       throw new IllegalStateException("not running in a station");
     }
-    Path stationDir = protectedHome.toPath();
-    String rp = getRepoPath() == null ? "" : getRepoPath().trim();
-    Path work = rp.isEmpty() ? stationDir.resolve("git") : stationDir.resolve(rp);
+    final Path stationDir = protectedHome.toPath();
 
     StationGit.Settings s = new StationGit.Settings();
     s.stationDir = stationDir;
-    s.workTree = work.normalize();
+    s.workTree = workTree(userShared.toPath(), Sys.getStation().getStationName());
+    s.bogSource = () -> readStationBog(stationDir);
     s.remoteUrl = getRemoteUrl();
     s.branch = getBranch();
     s.username = getUsername();
@@ -349,6 +394,50 @@ public class BStationGit extends BComponent {
     s.includeShared = getIncludeShared();
     s.applySharedOnPull = getApplySharedOnPull();
     return s;
+  }
+
+  /**
+   * The work tree. The station security manager lets a third-party module
+   * write only under the station home ({@code shared/}) and the Niagara shared
+   * user home, and the work tree must not be under {@code shared/} (that folder
+   * is served as {@code file:^}). So the default is
+   * {@code <niagara user home>/shared/git/<station>}. A relative
+   * {@code repoPath} is resolved against the shared user home.
+   */
+  Path workTree(Path userShared, String stationName) {
+    String rp = getRepoPath() == null ? "" : getRepoPath().trim();
+    if (rp.isEmpty()) {
+      return userShared.resolve("git").resolve(stationName).normalize();
+    }
+    Path p = new File(rp).toPath();
+    return (p.isAbsolute() ? p : userShared.resolve(p)).normalize();
+  }
+
+  /**
+   * The saved {@code config.bog} when the security manager lets this module
+   * read the protected station home. Otherwise the running station encoded
+   * with Niagara's own bog encoder and zipped as {@code file.xml}, which is the
+   * layout of a saved bog.
+   */
+  private byte[] readStationBog(Path stationDir) throws IOException {
+    try {
+      return Files.readAllBytes(stationDir.resolve("config.bog"));
+    } catch (SecurityException denied) {
+      bogNote = " (config.bog encoded from the running station; the saved file is not readable by this module)";
+      ByteArrayOutputStream xml = new ByteArrayOutputStream();
+      ValueDocEncoder enc = new ValueDocEncoder(xml);
+      enc.encodeDocument(Sys.getStation());
+      enc.close();
+      ByteArrayOutputStream zip = new ByteArrayOutputStream();
+      try (ZipOutputStream zos = new ZipOutputStream(zip)) {
+        ZipEntry e = new ZipEntry("file.xml");
+        e.setTime(0L);
+        zos.putNextEntry(e);
+        zos.write(xml.toByteArray());
+        zos.closeEntry();
+      }
+      return zip.toByteArray();
+    }
   }
 
   private static String describe(Throwable t) {

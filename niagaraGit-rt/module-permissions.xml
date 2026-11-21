@@ -17,5 +17,9 @@
       <name>MANAGE_EXECUTION</name>
       <purposeKey>Run git operations on a worker thread instead of the engine thread</purposeKey>
     </req-permission>
+    <req-permission>
+      <name>SHUTDOWN_HOOKS</name>
+      <purposeKey>JGit registers a JVM shutdown hook when it first loads (FS.FileStoreAttributes)</purposeKey>
+    </req-permission>
   </niagara-permission-groups>
 </permissions>

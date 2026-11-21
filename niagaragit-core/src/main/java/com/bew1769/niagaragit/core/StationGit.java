@@ -27,6 +27,8 @@ public final class StationGit {
     public String authorEmail = "station@niagara.invalid";
     public boolean includeShared = true;
     public boolean applySharedOnPull = false;
+    /** Station database bytes. Null means read {@code stationDir/config.bog}. */
+    public Snapshot.BogSource bogSource;
   }
 
   /** What an operation did, for the component's status slots. */
@@ -51,7 +53,8 @@ public final class StationGit {
   /** Copies the station into the work tree and commits when it changed. */
   public static Outcome commit(Settings s, String reason) throws IOException, GitAPIException {
     try (StationRepo repo = StationRepo.open(s.workTree, s.branch, s.remoteUrl)) {
-      Snapshot.Result copied = Snapshot.toWorkTree(s.stationDir, s.workTree, s.includeShared);
+      Snapshot.BogSource src = s.bogSource != null ? s.bogSource : Snapshot.fileSource(s.stationDir);
+      Snapshot.Result copied = Snapshot.toWorkTree(s.stationDir, src, s.workTree, s.includeShared);
       String id = repo.commitAll(message(reason), s.authorName, s.authorEmail);
       String msg = id == null
           ? "no changes"

@@ -11,6 +11,7 @@ niagaraGit.StationGit.authorName=Author Name
 niagaraGit.StationGit.authorEmail=Author Email
 niagaraGit.StationGit.includeShared=Include Shared Files
 niagaraGit.StationGit.applySharedOnPull=Apply Shared Files On Pull
+niagaraGit.StationGit.commitMessage=Commit Message
 niagaraGit.StationGit.status=Status
 niagaraGit.StationGit.lastResult=Last Result
 niagaraGit.StationGit.lastCommit=Last Commit

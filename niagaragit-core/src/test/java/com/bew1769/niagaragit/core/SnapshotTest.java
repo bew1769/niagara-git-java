@@ -57,6 +57,17 @@ class SnapshotTest {
   }
 
   @Test
+  void bogSourceReplacesTheSavedFile() throws IOException {
+    Path station = fakeStation(tmp.resolve("station"));
+    Path work = tmp.resolve("work");
+    byte[] live = "bog-live".getBytes(StandardCharsets.UTF_8);
+    Snapshot.Result r = Snapshot.toWorkTree(station, () -> live, work, true);
+    assertTrue(r.written.contains("config.bog"));
+    assertArrayEquals(live, Files.readAllBytes(work.resolve("config.bog")));
+    assertFalse(Snapshot.toWorkTree(station, () -> live, work, true).changed());
+  }
+
+  @Test
   void secondRunWritesNothingAndDeletionsFollow() throws IOException {
     Path station = fakeStation(tmp.resolve("station"));
     Path work = tmp.resolve("work");
