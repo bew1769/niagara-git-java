@@ -1,0 +1,6 @@
+# niagara-git-store:begin
+# Opt-in. Store .bog as text and rebuild the zip on checkout.
+# `niagara-git install` without --store-xml does not add this block.
+# -text stops Git from rewriting the stored bytes. diff= still pretty-prints.
+*.bog filter=niagara-store diff=niagara-bog -text
+# niagara-git-store:end

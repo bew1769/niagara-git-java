@@ -1,0 +1,13 @@
+<types>
+  <!--com.bew1769.niagaragit.wb-->
+  <!--
+    The agent element is the shape used by several Niagara 4 modules.
+    Slot-o-matic regenerates this file from @AgentOn. If the installed
+    Workbench rejects the element, delete it and run the wb slotomatic task.
+  -->
+  <type class="com.bew1769.niagaragit.wb.BGitServiceView" name="GitServiceView">
+    <agent>
+      <on type="niagaraGit:GitService" requiredPermissions="r"/>
+    </agent>
+  </type>
+</types>

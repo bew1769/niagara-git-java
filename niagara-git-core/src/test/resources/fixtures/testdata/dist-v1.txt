@@ -1,0 +1,69 @@
+# niagara-git dist format 1
+# files 5
+# skipped-noisy 4
+# skipped-secret 4
+
+## files
+734 b08dab7b37bc642debbbf3eca35bee77e209604ad8ec858608ea21fa10592319 niagara_user_home/stations/demoPlant/config.bog
+19 967034df8f109daaeec199188746c101d97c67911cc5703de11b74ae0ed19dcc niagara_user_home/stations/demoPlant/shared/images/mark.bin
+192 f37cc391217538dcd01f2dde265204bd34823bc3812cadf31131ccbe11157800 niagara_user_home/stations/demoPlant/shared/nav/demoPlant.nav
+286 7323b76355aabfe876040476cf84f227a075093eaaabd558b9ed113cd63bc764 niagara_user_home/stations/demoPlant/shared/palette/demoPlant.palette
+288 3ee76bbfb6a3dbf5844c658dd842194b6bedd67b45ea176941de0e82345a57b1 niagara_user_home/stations/demoPlant/shared/px/AHU1.px
+
+## skipped-noisy
+alarm count=1 size=18
+config.backup count=1 size=227
+history count=1 size=20
+logs count=1 size=27
+
+## skipped-secret
+87 niagara_user_home/certManagement/demo-client.pem
+34 niagara_user_home/security/cacerts.jceks
+42 niagara_user_home/security/exemptions.tes
+35 niagara_user_home/security/keystore.jceks
+
+## bog niagara_user_home/stations/demoPlant/config.bog
+<?xml version="1.0" encoding="UTF-8"?>
+<bajaObjectGraph FIPSEnabled="false" reversibleEncodingKeySource="none" reversibleEncodingValidator="[null.1]=" version="4.0">
+  <p h="1" m="b=baja" n="demoPlant" t="b:Station">
+    <p n="displayName" v="Demo Plant (synthetic)"/>
+    <p h="10" n="Services" t="b:Folder">
+      <p h="11" m="b=baja" n="UserService" t="b:UserService">
+        <p h="12" n="admin" t="b:User">
+          <p n="fullName" v="Demo Plant Operator"/>
+          <p n="password" t="b:Password" v="SYNTHETIC-NOT-A-REAL-HASH"/>
+          <p n="comment" v="Synthetic user for the niagara-git sample. Not a real password hash."/>
+        </p>
+      </p>
+    </p>
+    <p h="20" n="AHU1" t="b:Folder">
+      <p h="21" m="control=control" n="SupplyTemp" t="control:NumericWritable">
+        <p n="facets" t="b:Facets" v="units=u:fahrenheit;precision=i:1"/>
+        <p f="s" n="out" t="b:StatusNumeric">
+          <p n="value" v="72.0"/>
+          <p n="status" v="0"/>
+        </p>
+        <p n="fallback" t="b:StatusNumeric">
+          <p n="value" v="72.0"/>
+        </p>
+      </p>
+      <p h="22" m="control=control" n="SupplyFan" t="control:BooleanWritable">
+        <p f="s" n="out" t="b:StatusBoolean">
+          <p n="value" v="false"/>
+          <p n="status" v="0"/>
+        </p>
+        <p n="fallback" t="b:StatusBoolean">
+          <p n="value" v="false"/>
+        </p>
+      </p>
+      <p h="23" m="kitControl=kitControl" n="FanEnable" t="kitControl:GreaterThan">
+        <p n="Link" t="b:Link">
+          <p n="relationId" v="n:dataLink"/>
+          <p n="sourceOrd" v="h:21"/>
+          <p n="sourceSlotName" v="out"/>
+          <p n="targetSlotName" v="inA"/>
+        </p>
+      </p>
+    </p>
+  </p>
+</bajaObjectGraph>

@@ -1,0 +1,19 @@
+# Lexicon for the niagaraGit module.
+# Slot-o-matic and Workbench both read this file. Keys are best-effort.
+
+GitService=Git Service
+GitService.remoteUrl=Remote URL
+GitService.branch=Branch
+GitService.authorName=Author name
+GitService.authorEmail=Author email
+GitService.credentialUser=Credential user
+GitService.credentials=Credentials
+GitService.autoCommit=Auto-commit interval
+GitService.restartStationAfterPull=Restart station after pull
+GitService.storeXml=Store bog as text
+GitService.refreshStatus=Status
+GitService.init=Init
+GitService.commitSnapshot=Commit Snapshot
+GitService.pull=Pull
+GitService.push=Push
+GitService.status=Status

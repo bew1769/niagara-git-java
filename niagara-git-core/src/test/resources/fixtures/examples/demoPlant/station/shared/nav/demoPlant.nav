@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nav version="1.0">
+  <node name="Home" ord="station:|slot:/">
+    <node name="AHU-1" ord="station:|slot:/AHU1" px="file:^px/AHU1.px"/>
+  </node>
+</nav>

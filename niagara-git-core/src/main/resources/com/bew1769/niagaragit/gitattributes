@@ -1,0 +1,12 @@
+# niagara-git:begin
+# Diff drivers are registered in this repo's local git config by install.sh
+# or install.ps1. .gitattributes alone is not enough on a fresh clone.
+# .bog is a zip of Baja Object Graph XML (typically file.xml).
+# .dist is a zip backup of a station or platform.
+*.bog diff=niagara-bog
+*.dist diff=niagara-dist
+# Px graphics, nav files, and module palettes are XML already.
+*.px diff
+*.nav diff
+*.palette diff
+# niagara-git:end
