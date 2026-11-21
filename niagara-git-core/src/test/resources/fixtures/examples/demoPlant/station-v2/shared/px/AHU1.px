@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic Presentation XML. Not a commissioned Px view. -->
+<px version="1.0">
+  <canvas name="AHU1">
+    <label name="title" text="AHU-1 Supply Temp (occupied)"/>
+    <boundLabel name="supplyTemp" ord="station:|slot:/AHU1/SupplyTemp"/>
+  </canvas>
+</px>

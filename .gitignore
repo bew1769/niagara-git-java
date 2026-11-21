@@ -1,0 +1,15 @@
+.gradle/
+build/
+out/
+signing/
+*.jks
+*.jceks
+*.bcfks
+*.p12
+*.pfx
+*.keystore
+*.cer
+.niagara-git/
+
+# Niagara install pointers. Keep them in a local gradle.properties overlay.
+local.properties

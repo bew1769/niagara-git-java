@@ -1,0 +1,4 @@
+<types>
+  <!--com.bew1769.niagaragit-->
+  <type class="com.bew1769.niagaragit.BGitService" name="GitService"/>
+</types>

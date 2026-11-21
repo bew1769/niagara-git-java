@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Test and package the CLI
+        run: ./gradlew test shadowJar --no-daemon
+      - name: CLI version and stub exclusion
+        shell: bash
+        run: |
+          set -euo pipefail
+          java -jar niagara-git-cli/build/libs/niagara-git.jar --version
+          if jar tf niagara-git-cli/build/libs/niagara-git.jar | grep -q 'javax/baja/'; then
+            echo "CLI jar contains Niagara stubs" >&2
+            exit 1
+          fi

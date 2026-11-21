@@ -1,0 +1,57 @@
+# niagara-git:begin
+# Starter ignores for a Niagara 4 station folder.
+# The live database to version is config.bog (and shared px/nav/palette files).
+# Re-running the installer replaces this block.
+
+# History and alarm databases (protected station home). They change constantly
+# and Git cannot merge them.
+history/
+alarm/
+
+# Console logs and log folders.
+logs/
+logging/
+*.log
+station.out
+security.out
+audit.out
+
+# Timestamped copies the station writes beside config.bog.
+config.backup.*.bog
+config_backup_*.bog
+
+# Other protected-station runtime folders.
+dataRecovery/
+provisioningNiagara/
+niagaraDriver_nVirtual/
+
+# Certificates, key stores, and exported keys.
+# Station Security Guide: keystore.jceks, cacerts.jceks, exemptions.tes,
+# *.bcfks, and PEM/PFX exports under certManagement.
+security/
+certManagement/
+certificates/
+*.jceks
+*.bcfks
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.cer
+*.crt
+*.der
+*.priv
+*.tes
+exemptions.tes
+
+# Workstation junk that shows up in backups and shared folders.
+.DS_Store
+Thumbs.db
+__MACOSX/
+
+# Distribution backups are large and contain the same secrets as the station.
+# Uncomment to keep them out of the repo:
+# *.dist
+# niagara-git:end

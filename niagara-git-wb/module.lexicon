@@ -1,0 +1,7 @@
+# Lexicon for the niagaraGit Workbench view.
+
+gitView.init=Init
+gitView.commitSnapshot=Commit Snapshot
+gitView.pull=Pull
+gitView.push=Push
+gitView.status=Status
