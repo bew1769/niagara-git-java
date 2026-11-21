@@ -10,7 +10,8 @@
       <parameters>
         <parameter name="hosts" value="*"/>
         <parameter name="ports" value="*"/>
-        <parameter name="type" value="all"/>
+        <parameter name="type" value="client"/>
+        <parameter name="proxySelector" value="get"/>
       </parameters>
     </req-permission>
     <req-permission>

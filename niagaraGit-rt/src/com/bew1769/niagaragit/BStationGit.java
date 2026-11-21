@@ -3,7 +3,6 @@ package com.bew1769.niagaragit;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
@@ -23,9 +22,11 @@ import javax.baja.nre.annotations.NiagaraAction;
 import javax.baja.nre.annotations.NiagaraProperty;
 import javax.baja.nre.annotations.NiagaraType;
 import javax.baja.security.BPassword;
+import javax.baja.security.PasswordEncodingContext;
 import javax.baja.sys.Action;
 import javax.baja.sys.BAbsTime;
 import javax.baja.sys.BComponent;
+import javax.baja.sys.Context;
 import javax.baja.sys.Flags;
 import javax.baja.sys.Property;
 import javax.baja.sys.Sys;
@@ -270,7 +271,6 @@ public class BStationGit extends BComponent {
   }
 
   private ExecutorService executor;
-  private volatile String bogNote = "";
   private final AtomicBoolean busy = new AtomicBoolean(false);
 
   public void doCommit() {
@@ -339,7 +339,15 @@ public class BStationGit extends BComponent {
     }
     final StationGit.Settings settings;
     try {
-      settings = settings();
+      // Reading the password needs this module's KeyRingPermission. An action
+      // fired from a link runs with the linking module (control:TimeTrigger,
+      // for example) on the stack, which does not have it.
+      settings = AccessController.doPrivileged(new PrivilegedAction<StationGit.Settings>() {
+        @Override
+        public StationGit.Settings run() {
+          return settings();
+        }
+      });
     } catch (RuntimeException e) {
       busy.set(false);
       finish(name, "failed: " + describe(e), null);
@@ -350,9 +358,8 @@ public class BStationGit extends BComponent {
       @Override
       public void run() {
         try {
-          bogNote = "";
           StationGit.Outcome o = job.run(settings);
-          finish(name, o.message + bogNote, o.head);
+          finish(name, o.message, o.head);
         } catch (Throwable t) {
           LOG.log(Level.WARNING, "niagaraGit " + name + " failed", t);
           finish(name, "failed: " + describe(t), null);
@@ -383,7 +390,7 @@ public class BStationGit extends BComponent {
     StationGit.Settings s = new StationGit.Settings();
     s.stationDir = stationDir;
     s.workTree = workTree(userShared.toPath(), Sys.getStation().getStationName());
-    s.bogSource = () -> readStationBog(stationDir);
+    s.bogSource = this::readStationBog;
     s.remoteUrl = getRemoteUrl();
     s.branch = getBranch();
     s.username = getUsername();
@@ -414,31 +421,35 @@ public class BStationGit extends BComponent {
   }
 
   /**
-   * The saved {@code config.bog} when the security manager lets this module
-   * read the protected station home. Otherwise the running station encoded
-   * with Niagara's own bog encoder and zipped as {@code file.xml}, which is the
-   * layout of a saved bog.
+   * The running station encoded with Niagara's own bog encoder and zipped as
+   * {@code file.xml}, the layout of a saved bog. The saved file is not used:
+   * the security manager does not let this module read it, and it carries the
+   * station's encrypted passwords and password hashes, which must not leave
+   * the station.
    */
-  private byte[] readStationBog(Path stationDir) throws IOException {
-    try {
-      return Files.readAllBytes(stationDir.resolve("config.bog"));
-    } catch (SecurityException denied) {
-      bogNote = " (config.bog encoded from the running station; the saved file is not readable by this module)";
-      ByteArrayOutputStream xml = new ByteArrayOutputStream();
-      ValueDocEncoder enc = new ValueDocEncoder(xml);
-      enc.encodeDocument(Sys.getStation());
-      enc.close();
-      ByteArrayOutputStream zip = new ByteArrayOutputStream();
-      try (ZipOutputStream zos = new ZipOutputStream(zip)) {
-        ZipEntry e = new ZipEntry("file.xml");
-        e.setTime(0L);
-        zos.putNextEntry(e);
-        zos.write(xml.toByteArray());
-        zos.closeEntry();
-      }
-      return zip.toByteArray();
+  private byte[] readStationBog() throws IOException {
+    ByteArrayOutputStream xml = new ByteArrayOutputStream();
+    // No encryption key on purpose: with the "none" key source and
+    // default-on-failure, every password slot is written as the empty
+    // default, so no password, hash or token is written in any form. After a
+    // restore, user passwords and the remote token must be set again.
+    Context noSecrets = PasswordEncodingContext.updateContext(
+        PasswordEncodingContext.updateForNone(Context.NULL),
+        pec -> pec.defaultOnEncodeFailures());
+    ValueDocEncoder enc = new ValueDocEncoder(xml, noSecrets);
+    enc.encodeDocument(Sys.getStation());
+    enc.close();
+    ByteArrayOutputStream zip = new ByteArrayOutputStream();
+    try (ZipOutputStream zos = new ZipOutputStream(zip)) {
+      ZipEntry e = new ZipEntry("file.xml");
+      e.setTime(0L);
+      zos.putNextEntry(e);
+      zos.write(xml.toByteArray());
+      zos.closeEntry();
     }
+    return zip.toByteArray();
   }
+
 
   private static String describe(Throwable t) {
     String m = t.getMessage();

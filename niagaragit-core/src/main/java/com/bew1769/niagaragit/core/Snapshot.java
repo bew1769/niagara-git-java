@@ -31,10 +31,17 @@ public final class Snapshot {
   public static final class Result {
     public final List<String> written;
     public final List<String> deleted;
+    /** Password values {@link BogSecrets} removed from config.bog. */
+    public final int passwordsRemoved;
 
     Result(List<String> written, List<String> deleted) {
+      this(written, deleted, 0);
+    }
+
+    Result(List<String> written, List<String> deleted, int passwordsRemoved) {
       this.written = Collections.unmodifiableList(written);
       this.deleted = Collections.unmodifiableList(deleted);
+      this.passwordsRemoved = passwordsRemoved;
     }
 
     public boolean changed() {
@@ -43,7 +50,8 @@ public final class Snapshot {
 
     @Override
     public String toString() {
-      return written.size() + " written, " + deleted.size() + " deleted";
+      return written.size() + " written, " + deleted.size() + " deleted"
+          + (passwordsRemoved > 0 ? ", " + passwordsRemoved + " password values removed" : "");
     }
   }
 
@@ -79,7 +87,8 @@ public final class Snapshot {
    */
   public static Result toWorkTree(Path stationDir, BogSource bogSource, Path workTree,
       boolean includeShared) throws IOException {
-    byte[] bog = bogSource.read();
+    BogSecrets.Result clean = BogSecrets.redact(bogSource.read());
+    byte[] bog = clean.bog;
     if (isInside(stationDir.resolve(SHARED), workTree)) {
       throw new IOException("the git work tree must not be inside the station shared folder: " + workTree);
     }
@@ -111,7 +120,7 @@ public final class Snapshot {
       }
     }
     pruneEmptyDirs(workTree.resolve(SHARED));
-    return new Result(written, deleted);
+    return new Result(written, deleted, clean.removed);
   }
 
   /**

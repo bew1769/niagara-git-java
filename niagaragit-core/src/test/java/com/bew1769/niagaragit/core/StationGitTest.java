@@ -160,4 +160,18 @@ class StationGitTest {
     String cfg = new String(Files.readAllBytes(s.workTree.resolve(".git/config")), StandardCharsets.UTF_8);
     assertTrue(cfg.contains("autocrlf = false"), cfg);
   }
+
+  @Test
+  void refusesCredentialsInRemoteUrl() {
+    for (String bad : new String[] {
+        "https://user:s3cr3t@example.com/r.git", "https://s3cr3t@example.com/r.git", "http://u:p@127.0.0.1:8443/r"}) {
+      s.remoteUrl = bad;
+      IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> StationGit.commit(s, null), bad);
+      assertFalse(e.getMessage().contains("s3cr3t"), "message must not echo the token");
+    }
+    for (String ok : new String[] {
+        "", "https://example.com/org/r.git", "https://127.0.0.1:8443/r.git?x=a@b", "file:///C:/x/r.git"}) {
+      StationGit.checkRemoteUrl(ok);
+    }
+  }
 }

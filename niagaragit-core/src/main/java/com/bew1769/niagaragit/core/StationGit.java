@@ -52,6 +52,7 @@ public final class StationGit {
 
   /** Copies the station into the work tree and commits when it changed. */
   public static Outcome commit(Settings s, String reason) throws IOException, GitAPIException {
+    checkRemoteUrl(s.remoteUrl);
     try (StationRepo repo = StationRepo.open(s.workTree, s.branch, s.remoteUrl)) {
       Snapshot.BogSource src = s.bogSource != null ? s.bogSource : Snapshot.fileSource(s.stationDir);
       Snapshot.Result copied = Snapshot.toWorkTree(s.stationDir, src, s.workTree, s.includeShared);
@@ -65,6 +66,7 @@ public final class StationGit {
 
   /** Pushes what is already committed. */
   public static Outcome push(Settings s) throws IOException, GitAPIException {
+    checkRemoteUrl(s.remoteUrl);
     try (StationRepo repo = StationRepo.open(s.workTree, s.branch, s.remoteUrl)) {
       String r = repo.push(s.username, s.password);
       return new Outcome(r, repo.head());
@@ -73,6 +75,7 @@ public final class StationGit {
 
   /** Commit, then push when there is a remote. */
   public static Outcome commitAndPush(Settings s, String reason) throws IOException, GitAPIException {
+    checkRemoteUrl(s.remoteUrl);
     Outcome c = commit(s, reason);
     try (StationRepo repo = StationRepo.open(s.workTree, s.branch, s.remoteUrl)) {
       if (!repo.hasRemote()) {
@@ -92,6 +95,7 @@ public final class StationGit {
    * the station is never written.
    */
   public static Outcome pull(Settings s) throws IOException, GitAPIException {
+    checkRemoteUrl(s.remoteUrl);
     try (StationRepo repo = StationRepo.open(s.workTree, s.branch, s.remoteUrl)) {
       String r = repo.pull(s.username, s.password);
       if (s.applySharedOnPull) {
@@ -99,6 +103,35 @@ public final class StationGit {
         r = r + "; " + applied.written.size() + " shared files written to the station";
       }
       return new Outcome(r, repo.head());
+    }
+  }
+
+  /**
+   * Refuses a remote URL that carries a user name or token
+   * ({@code https://user:token@host/...}). The URL is a plain property, so it
+   * is saved in config.bog and would be committed and pushed with every
+   * snapshot. Credentials belong in the username and password slots.
+   */
+  public static void checkRemoteUrl(String url) {
+    if (url == null) {
+      return;
+    }
+    String u = url.trim();
+    int scheme = u.indexOf("://");
+    if (scheme < 0) {
+      return;
+    }
+    int start = scheme + 3;
+    int end = u.length();
+    for (char c : new char[] {'/', '?', '#'}) {
+      int i = u.indexOf(c, start);
+      if (i >= 0 && i < end) {
+        end = i;
+      }
+    }
+    if (u.substring(start, end).indexOf('@') >= 0) {
+      throw new IllegalArgumentException("remoteUrl must not contain a user name or token "
+          + "(it is saved in config.bog and would be committed); use the username and password slots");
     }
   }
 
