@@ -1,0 +1,6 @@
+# Copy to local.properties (gitignored). No secrets in this file.
+niagara_home=C:\\Niagara\\Niagara-4.15.6.20
+# Java 8 toolchain for the Niagara compile. The 4.15.6.20 jre includes javac.
+org.gradle.java.installations.paths=C:\\Niagara\\Niagara-4.15.6.20\\jre
+certAlias=niagaragit
+# niagara.signing.profile=security/niagara.signing.xml

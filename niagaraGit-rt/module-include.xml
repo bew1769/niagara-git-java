@@ -1,0 +1,7 @@
+<!--
+  Type index for the runtime module part.
+  Slot-o-matic wraps this file in a dummy root, so it must not start with an XML declaration.
+-->
+<types>
+  <type class="com.bew1769.niagaragit.BStationGit" name="StationGit"/>
+</types>

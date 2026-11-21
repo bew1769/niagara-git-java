@@ -1,0 +1,21 @@
+# niagara-git lexicon. Keys are module.type and module.type.slot.
+
+niagaraGit=niagara-git
+niagaraGit.StationGit=Station Git
+niagaraGit.StationGit.repoPath=Repository Path
+niagaraGit.StationGit.remoteUrl=Remote URL
+niagaraGit.StationGit.branch=Branch
+niagaraGit.StationGit.username=Username
+niagaraGit.StationGit.password=Password Or Token
+niagaraGit.StationGit.authorName=Author Name
+niagaraGit.StationGit.authorEmail=Author Email
+niagaraGit.StationGit.includeShared=Include Shared Files
+niagaraGit.StationGit.applySharedOnPull=Apply Shared Files On Pull
+niagaraGit.StationGit.status=Status
+niagaraGit.StationGit.lastResult=Last Result
+niagaraGit.StationGit.lastCommit=Last Commit
+niagaraGit.StationGit.lastRun=Last Run
+niagaraGit.StationGit.commit=Commit
+niagaraGit.StationGit.push=Push
+niagaraGit.StationGit.commitAndPush=Commit And Push
+niagaraGit.StationGit.pull=Pull

@@ -1,0 +1,21 @@
+<permissions>
+  <niagara-permission-groups type="all">
+  </niagara-permission-groups>
+  <niagara-permission-groups type="workbench">
+  </niagara-permission-groups>
+  <niagara-permission-groups type="station">
+    <req-permission>
+      <name>NETWORK_COMMUNICATION</name>
+      <purposeKey>Push to and pull from the git remote set in remoteUrl (HTTPS)</purposeKey>
+      <parameters>
+        <parameter name="hosts" value="*"/>
+        <parameter name="ports" value="*"/>
+        <parameter name="type" value="all"/>
+      </parameters>
+    </req-permission>
+    <req-permission>
+      <name>MANAGE_EXECUTION</name>
+      <purposeKey>Run git operations on a worker thread instead of the engine thread</purposeKey>
+    </req-permission>
+  </niagara-permission-groups>
+</permissions>
